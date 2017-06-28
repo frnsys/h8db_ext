@@ -1,0 +1,84 @@
+// https://stackoverflow.com/a/29301739
+function matchText(node, regex, callback, excludeElements) {
+  excludeElements || (excludeElements = ['script', 'style', 'iframe', 'canvas']);
+  var child = node.firstChild;
+
+  while (child) {
+    switch (child.nodeType) {
+    case 1:
+      if (excludeElements.indexOf(child.tagName.toLowerCase()) > -1)
+        break;
+      matchText(child, regex, callback, excludeElements);
+      break;
+    case 3:
+      var bk = 0;
+      child.data.replace(regex, function(all) {
+        var args = [].slice.call(arguments),
+            offset = args[args.length - 2],
+            newTextNode = child.splitText(offset+bk), tag;
+        bk -= child.data.length + all.length;
+
+        newTextNode.data = newTextNode.data.substr(all.length);
+        tag = callback.apply(window, [child].concat(args));
+        child.parentNode.insertBefore(tag, newTextNode);
+        child = newTextNode;
+      });
+      regex.lastIndex = 0;
+      break;
+    }
+
+    child = child.nextSibling;
+  }
+
+  return node;
+};
+
+chrome.extension.sendMessage({}, function(response) {
+	var readyStateCheckInterval = setInterval(function() {
+    if (document.readyState === 'complete') {
+      clearInterval(readyStateCheckInterval);
+
+      // highlight terms
+      var term = 'you'
+      matchText(document.body, new RegExp('\\b' + term + '\\b', 'gi'), function(node, match, offset) {
+        var span = document.createElement('span');
+        span.className = 'h8db-term';
+        span.textContent = match;
+        span.style.backgroundColor = 'red';
+        span.dataset.h8db = term;
+        return span;
+      });
+
+      // setup hover popover
+      var offset = 5;
+      var popover = document.createElement('div');
+      popover.style.position = 'fixed';
+      popover.style.zIndex = 10000;
+      popover.style.display = 'none';
+      popover.style.fontFamily = 'monospace';
+      popover.style.backgroundColor = '#fff';
+      popover.style.boxShadow = '2px 2px 2px rgba(0,0,0,0.2)';
+      popover.style.padding = '0.1em 0.2em';
+      document.body.appendChild(popover);
+      document.addEventListener('mousemove', function(ev) {
+        popover.style.top = (ev.clientY + offset) + 'px';
+        popover.style.left = (ev.clientX + offset) + 'px';
+      });
+
+      // bind popover events for highlighted terms
+      var termEls = document.querySelectorAll('.h8db-term');
+      for (var i=0; i<termEls.length; i++) {
+        termEls[i].addEventListener('mouseenter', function(ev) {
+          clearTimeout(popover.timer);
+          popover.style.display = 'block';
+          popover.textContent = 'You highlighted: ' + ev.target.dataset.h8db;
+        });
+        termEls[i].addEventListener('mouseleave', function(ev) {
+          popover.timer = setTimeout(function() {
+            popover.style.display = 'none';
+          }, 10);
+        });
+      }
+    }
+	}, 10);
+});
