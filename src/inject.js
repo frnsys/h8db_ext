@@ -40,7 +40,7 @@ function matchText(node, regex, callback, excludeElements) {
 };
 
 chrome.extension.sendMessage({}, function(response) {
-	var readyStateCheckInterval = setInterval(function() {
+  var readyStateCheckInterval = setInterval(function() {
     if (document.readyState === 'complete') {
       clearInterval(readyStateCheckInterval);
 
@@ -89,5 +89,5 @@ chrome.extension.sendMessage({}, function(response) {
         });
       }
     }
-	}, 10);
+  }, 10);
 });
