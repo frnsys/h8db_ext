@@ -1,3 +1,9 @@
+// fetch terms from event page
+var terms = []
+chrome.runtime.sendMessage({msg: 'terms'}, function(response) {
+  terms = response.terms;
+});
+
 // https://stackoverflow.com/a/29301739
 function matchText(node, regex, callback, excludeElements) {
   excludeElements || (excludeElements = ['script', 'style', 'iframe', 'canvas']);
@@ -39,15 +45,18 @@ chrome.extension.sendMessage({}, function(response) {
       clearInterval(readyStateCheckInterval);
 
       // highlight terms
-      var term = 'you'
-      matchText(document.body, new RegExp('\\b' + term + '\\b', 'gi'), function(node, match, offset) {
-        var span = document.createElement('span');
-        span.className = 'h8db-term';
-        span.textContent = match;
-        span.style.backgroundColor = 'red';
-        span.dataset.h8db = term;
-        return span;
-      });
+      terms.map(obj => {
+        var term = obj.term;
+        matchText(document.body, new RegExp('\\b' + term + '\\b', 'gi'), function(node, match, offset) {
+          var span = document.createElement('span');
+          span.className = 'h8db-term';
+          span.textContent = match;
+          span.style.backgroundColor = 'red';
+          span.dataset.h8db_term = term;
+          span.dataset.h8db_definition = obj.explanation;
+          return span;
+        });
+      })
 
       // setup hover popover
       var offset = 5;
@@ -71,7 +80,7 @@ chrome.extension.sendMessage({}, function(response) {
         termEls[i].addEventListener('mouseenter', function(ev) {
           clearTimeout(popover.timer);
           popover.style.display = 'block';
-          popover.textContent = 'You highlighted: ' + ev.target.dataset.h8db;
+          popover.textContent = ev.target.dataset.h8db_definition;
         });
         termEls[i].addEventListener('mouseleave', function(ev) {
           popover.timer = setTimeout(function() {
